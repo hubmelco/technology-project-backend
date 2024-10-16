@@ -1,7 +1,7 @@
 const { PutCommand, QueryCommand, DeleteCommand, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { TableName, UsernameIndex, CLASS_USER, runCommand } = require('../utilities/dynamoUtilities');
 
-async function putUser(Item) {
+const putUser = async (Item) => {
     const command = new PutCommand({
         TableName,
         Item,
@@ -9,9 +9,9 @@ async function putUser(Item) {
     });
     const response = await runCommand(command);
     return response;
-}
+};
 
-async function queryByUsername(username) {
+const queryByUsername = async (username) => {
     const command = new QueryCommand({
         TableName,
         IndexName: UsernameIndex,
@@ -27,9 +27,9 @@ async function queryByUsername(username) {
     });
     const response = await runCommand(command);
     return response;
-}
+};
 
-async function getUserById(userId) {
+const getUserById = async (userId) => {
     const command = new GetCommand({
         TableName,
         Key: {
@@ -39,9 +39,9 @@ async function getUserById(userId) {
     });
     const response = await runCommand(command);
     return response;
-}
+};
 
-async function updateRole(id, role) {
+const updateRole = async (id, role) => {
     const command = new UpdateCommand({
         TableName,
         Key: {
@@ -82,7 +82,7 @@ async function updateUser(userId, requestBody) {
     });
     const response = await runCommand(command);
     return response;
-}
+};
 
 const deleteUser = async (id) => {
     const command = new DeleteCommand({
@@ -90,7 +90,7 @@ const deleteUser = async (id) => {
         Key: { class: CLASS_USER, itemID: id }
     });
     await runCommand(command);
-}
+};
 
 module.exports = {
     putUser,

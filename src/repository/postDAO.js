@@ -1,15 +1,28 @@
-const { PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand } = require("@aws-sdk/lib-dynamodb");
-const { TableName, runCommand, flaggedIndex, CLASS_POST } = require('../utilities/dynamoUtilities');
+const { PutCommand, GetCommand, ScanCommand, QueryCommand, UpdateCommand, DeleteCommand } = require("@aws-sdk/lib-dynamodb");
+const { TableName, runCommand, CLASS_POST, flaggedIndex } = require('../utilities/dynamoUtilities');
 
-async function sendPost(Item){
+const sendPost = async (Item) => {
     const command = new PutCommand({
         TableName: TableName,
         Item
     });
     return await runCommand(command);
-}
+};
 
-async function scanPosts() {
+const sendReply = async (reply, id) => {
+    const command = new UpdateCommand({
+        TableName,
+        Key: { "class": CLASS_POST, "itemID": id },
+        ExpressionAttributeValues: {
+            ":reply": [reply]
+        },
+        UpdateExpression: "SET replies = list_append(replies, :reply)",
+        ReturnValues: "UPDATED_NEW"
+    });
+    return await runCommand(command);
+};
+
+const scanPosts = async () => {
     const command = new ScanCommand({
         TableName,
         FilterExpression: "#class = :class",
@@ -19,28 +32,22 @@ async function scanPosts() {
         ExpressionAttributeValues: {
             ":class": CLASS_POST
         }
-    });
-    const response = await runCommand(command);
-    return response;
-}
+    })
+    return await runCommand(command);
+};
 
-async function sendReply(reply, id){
-    const command = new UpdateCommand({
+const getPost = async (id) => {
+    const command = new GetCommand({
         TableName,
-        Key: {"class": CLASS_POST, "itemID": id},
-        ExpressionAttributeValues: {
-            ":reply": [reply]
-        },
-        UpdateExpression: "SET replies = list_append(replies, :reply)",
-        ReturnValues: "UPDATED_NEW"
+        Key: { class: CLASS_POST, itemID: id }
     });
     return await runCommand(command);
 }
 
-async function sendLike(like, id){
+const sendLike = async (like, id) => {
     const command = new UpdateCommand({
         TableName,
-        Key: {"class": CLASS_POST, "itemID": id},
+        Key: { "class": CLASS_POST, "itemID": id },
         ExpressionAttributeValues: {
             ":r": [like]
         },
@@ -50,15 +57,23 @@ async function sendLike(like, id){
     return await runCommand(command);
 }
 
-async function removeLike(index, id){
+async function removeLike(index, id) {
     const command = new UpdateCommand({
         TableName,
-        Key: {"class": CLASS_POST, "itemID": id},
-        UpdateExpression: "REMOVE likedBy["+index+"]",
+        Key: { "class": CLASS_POST, "itemID": id },
+        UpdateExpression: "REMOVE likedBy[" + index + "]",
         ReturnValues: "UPDATED_NEW"
     });
     return await runCommand(command);
-}
+};
+
+const deletePost = async (id) => {
+    const command = new DeleteCommand({
+        TableName,
+        Key: { class: CLASS_POST, itemID: id }
+    });
+    return await runCommand(command);
+};
 
 async function updatePost(id, attributes) {
     const command = new UpdateCommand({
@@ -78,14 +93,6 @@ async function updatePost(id, attributes) {
             ":isFlagged": attributes.isFlagged
         }
     })
-    return await runCommand(command);
-}
-
-async function getPost(id) {
-    const command = new GetCommand({
-        TableName,
-        Key: {class: CLASS_POST, itemID: id}
-    });
     return await runCommand(command);
 }
 
@@ -124,12 +131,13 @@ async function getFlaggedPost(isFlagged) {
 
 module.exports = {
     sendPost,
-    updatePost,
-    getPost,
-    updatePostFlag,
-    getFlaggedPost,
-    scanPosts,
     sendReply,
+    getPost,
+    scanPosts,
+    getFlaggedPost,
+    updatePost,
+    updatePostFlag,
     sendLike,
     removeLike,
+    deletePost
 };

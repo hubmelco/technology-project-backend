@@ -1,9 +1,9 @@
 const uuid = require("uuid");
-const { throwIfError } = require('../utilities/dynamoUtilities');
+const { throwIfError, CLASS_POST } = require('../utilities/dynamoUtilities');
 const postDAO = require("../repository/postDAO");
 
-async function createPost(userID, description, score, title){
-    const post = {class: "post", itemID: uuid.v4(), postedBy: userID, description, score, title, replies: [], likedBy: [], isFlagged: 0};
+const createPost = async (userID, description, score, title) => {
+    const post = {class: CLASS_POST, itemID: uuid.v4(), postedBy: userID, description, score, title, replies: [], likedBy: [], isFlagged: 0};
     const data = await postDAO.sendPost(post);
     throwIfError(data);
     delete(post.class);
@@ -76,37 +76,52 @@ async function getFlaggedPost(isFlagged) {
     return result.Items;
 }
 
-async function seePosts(){
-    const posts = await postDAO.scanPosts();
-    throwIfError(posts);
-    return posts.Items;
-}
-
 async function createReply(userID, text, id){
-    const post = await postDAO.getPost(id);
-    if (!post.Item) {
-        throw {status: 400, message: `Post ${id} doesn't exist`};
-    }
+    await getPostById(id);
     const reply = {postedBy: userID, description: text, itemID: uuid.v4()};
     const data = await postDAO.sendReply(reply, id);
     throwIfError(data);
     return reply;
 }
 
-async function checkLike(like, postID, userID){
-    const userLike = {userID, like};
-    const post = await postDAO.getPost(postID);
-    if (!post.Item) {
-        throw {status: 400, message: `Post ${postID} doesn't exist`};
+const getPostById = async (id) => {
+    const getPostResult = await postDAO.getPost(id);
+    throwIfError(getPostResult);
+    const foundPost = getPostResult.Item;
+    if (!foundPost) {
+        throw {
+            status: 400,
+            message: `Post ${id} not found`
+        }
     }
-    const likeList = post.Item.likedBy;
-    for (let i = 0; i < likeList.length; i++){
-        if (likeList[i].userID == userID){
-            if (likeList[i].like == like){
-                if (like == 1){
-                    throw {status: 400, message: `You already liked post ${postID}`};
+
+    return foundPost;
+}
+
+const seePosts = async () => {
+    const posts = await postDAO.scanPosts();
+    throwIfError(posts);
+    return posts.Items;
+}
+
+const deletePost = async (id) => {
+    await getPostById(id);
+
+    const deleteResult = await postDAO.deletePost(id);
+    throwIfError(deleteResult);
+}
+
+const checkLike = async (like, postID, userID) => {
+    const userLike = { userID, like };
+    const post = await getPostById(postID);
+    const likeList = post.likedBy;
+    for (let i = 0; i < likeList.length; i++) {
+        if (likeList[i].userID == userID) {
+            if (likeList[i].like == like) {
+                if (like == 1) {
+                    throw { status: 400, message: `You already liked post ${postID}` };
                 }
-                throw {status: 400, message: `You already disliked post ${postID}`};
+                throw { status: 400, message: `You already disliked post ${postID}` };
             }
             //Remember to have frontend update like/dislike because you changed your mind
             const data = await postDAO.removeLike(i, postID);
@@ -121,11 +136,13 @@ async function checkLike(like, postID, userID){
 
 module.exports = {
     createPost,
-    updatePost,
     getPost,
     updatePostFlag,
     getFlaggedPost,
     createReply,
+    getPostById,
     seePosts,
-    checkLike
+    checkLike,
+    updatePost,
+    deletePost
 };

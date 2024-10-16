@@ -1,13 +1,12 @@
-const { createPost, updatePost, updatePostFlag, getFlaggedPost, checkLike, createReply} = require("../src/services/postService");
+const { createPost, createReply, getPostById, updatePost, updatePostFlag, getFlaggedPost, checkLike, deletePost } = require("../src/services/postService");
 const postDAO = require("../src/repository/postDAO");
-const uuid = require('uuid');
-const {throwIfError} = require("../src/utilities/dynamoUtilities")
+const { CLASS_POST } = require("../src/utilities/dynamoUtilities");
 
 jest.mock('../src/repository/postDAO');
 jest.mock("../src/utilities/dynamoUtilities");
 let mockDatabase = [];
 const mockPost1 = {
-    class: "post",
+    class: CLASS_POST,
     itemID: "e7b1998e-77d3-4cad-9955-f20135d840d0",
     postedBy: "95db201c-35bb-47d6-8634-8701a01f496a",
     description: "Hello world",
@@ -17,7 +16,7 @@ const mockPost1 = {
     likedBy: []
 };
 const mockPost2 = {
-    class: "post",
+    class: CLASS_POST,
     itemID: "29ee2056-c74e-4537-ac95-6234a2506426",
     postedBy: "6d737a3b-d543-459b-aca6-d1f04952bf30",
     description: "This is a great song",
@@ -38,16 +37,52 @@ beforeAll(() => {
         };
     });
     postDAO.getPost.mockImplementation(async (id) => {
-        for (let i = 0; i < mockDatabase.length; i++){
-            if (mockDatabase[i].itemID == id){
+        for (let i = 0; i < mockDatabase.length; i++) {
+            if (mockDatabase[i].itemID == id) {
                 return {
                     $metadata: {
                         httpStatusCode: 200
                     },
-                    Item: mockPost1
+                    Item: mockDatabase[i]
                 };
             }
         }
+        return {
+            $metadata: {
+                httpStatusCode: 200
+            }
+        };
+    });
+    postDAO.updatePost.mockImplementation(async (id, attributes) => {
+        for (let i = 0; i < mockDatabase.length; i++) {
+            if (mockDatabase[i].itemID == id) {
+                Object.keys(attributes).forEach((key) => {
+                    mockDatabase[i][key] = attributes[key];
+                });
+                return {
+                    $metadata: {
+                        httpStatusCode: 200
+                    }
+                };
+            }
+        }
+    });
+    postDAO.deletePost.mockImplementation(async (id) => {
+        for (let i = 0; i < mockDatabase.length; i++) {
+            if (mockDatabase[i].itemID == id) {
+                mockDatabase.splice(i, 1);
+                return {
+                    $metadata: {
+                        httpStatusCode: 200
+                    }
+                };
+            }
+        }
+        return {
+            $metadata: {
+                httpStatusCode: 200
+            }
+        };
     });
     postDAO.sendReply.mockImplementation(async (reply, id) => {
         const post = await postDAO.getPost(id);
@@ -58,11 +93,11 @@ beforeAll(() => {
             }
         };
     });
-    postDAO.sendLike.mockImplementation(async (like, id) =>{
+    postDAO.sendLike.mockImplementation(async (like, id) => {
         const post = await postDAO.getPost(id);
         post.Item.likedBy.push(like);
-        for (let i = 0; i < mockDatabase.length; i++){
-            if (mockDatabase[i].itemID == post.Item.itemID){
+        for (let i = 0; i < mockDatabase.length; i++) {
+            if (mockDatabase[i].itemID == post.Item.itemID) {
                 mockDatabase[i].likedBy = post.Item.likedBy;
                 break;
             }
@@ -76,8 +111,8 @@ beforeAll(() => {
     postDAO.removeLike.mockImplementation(async (index, id) => {
         const post = await postDAO.getPost(id);
         post.Item.likedBy.splice(index, 1);
-        for (let i = 0; i < mockDatabase.length; i++){
-            if (mockDatabase[i].itemID == post.Item.itemID){
+        for (let i = 0; i < mockDatabase.length; i++) {
+            if (mockDatabase[i].itemID == post.Item.itemID) {
                 mockDatabase[i].likedBy = post.Item.likedBy;
                 break;
             }
@@ -93,13 +128,15 @@ beforeAll(() => {
 beforeEach(() => {
     // Reset database
     mockDatabase = [];
-    mockDatabase.push(mockPost1);
-    mockDatabase.push(mockPost2);
+    mockDatabase.push(structuredClone(mockPost1));
+    mockDatabase.push(structuredClone(mockPost2));
     postDAO.sendPost.mockClear();
-    postDAO.sendReply.mockClear();
     postDAO.getPost.mockClear();
+    postDAO.sendReply.mockClear();
+    postDAO.updatePost.mockClear();
     postDAO.sendLike.mockClear();
     postDAO.removeLike.mockClear();
+    postDAO.deletePost.mockClear();
 });
 
 describe('createPost test', () => {
@@ -204,11 +241,84 @@ describe('createReply test', () => {
         await createReply(userID, text, id);
         let added = false;
         mockDatabase.forEach((post) => {
-            if(post.itemID == id && post.replies.length > 0){
+            if (post.itemID == id && post.replies.length > 0) {
                 added = true;
             }
         });
         expect(added).toBeTruthy();
+    });
+});
+
+describe('getPostById', () => {
+    it('Successful get post', async () => {
+        const id = mockPost1.itemID;
+        const expectedDescription = mockPost1.description;
+
+        const post = await getPostById(id);
+
+        expect(post.itemID).toEqual(id);
+        expect(post.description).toEqual(expectedDescription);
+    });
+
+    it('Throws if post not found', async () => {
+        const id = "FakeID";
+        let error;
+        const expectedStatus = 400;
+
+        try {
+            await getPostById(id);
+        }
+        catch (err) {
+            error = err;
+        }
+
+        expect(error?.status).toEqual(expectedStatus);
+    });
+})
+
+describe('updatePost test', () => {
+    it('Successful update post', async () => {
+        const id = mockPost1.itemID;
+        const title = "Different Title";
+        const score = 28;
+        const description = "New description";
+
+        await updatePost(id, mockPost1, {title, score, description});
+        const post = (await postDAO.getPost(id)).Item;
+
+        expect(post.title).toEqual(title);
+        expect(post.score).toEqual(score);
+        expect(post.description).toEqual(description);
+    });
+
+    it('Update only the title', async () => {
+        const id = mockPost1.itemID;
+        const title = "Another Different Title";
+        const score = undefined;
+        const description = undefined;
+        const expectedScore = mockPost1.score;
+        const expectedDescription = mockPost1.description;
+
+        await updatePost(id, mockPost1, {title, score, description});
+        const post = (await postDAO.getPost(id)).Item;
+
+        expect(post.title).toEqual(title);
+        expect(post.score).toEqual(expectedScore);
+        expect(post.description).toEqual(expectedDescription);
+    });
+});
+
+describe('deletePost test', () => {
+    it('Successful delete post', async () => {
+        const id = mockPost1.itemID;
+        const expectedStatus = 200;
+        const expectedPosts = mockDatabase.length - 1;
+
+        await deletePost(id);
+        const response = (await postDAO.getPost(id));
+
+        expect(response.Item).toBeFalsy();
+        expect(mockDatabase.length).toEqual(expectedPosts);
     });
 });
 
@@ -221,9 +331,9 @@ describe('checkLike test', () => {
         await checkLike(like, id, userID);
         let added = false;
         mockDatabase.forEach((post) => {
-            if (post.itemID == id){
-                for (const i of post.likedBy){
-                    if(i.userID == userID && i.like == 1){
+            if (post.itemID == id) {
+                for (const i of post.likedBy) {
+                    if (i.userID == userID && i.like == 1) {
                         added = true;
                     }
                 }
@@ -239,12 +349,12 @@ describe('checkLike test', () => {
         await checkLike(like, id, userID);
         let added = false;
         mockDatabase.forEach((post) => {
-            if (post.itemID == id){
-                for (const i of post.likedBy){
-                    if (i.userID == userID && i.like == -1){
+            if (post.itemID == id) {
+                for (const i of post.likedBy) {
+                    if (i.userID == userID && i.like == -1) {
                         added = true;
                     }
-                    if (i.userID == userID && i.like == 1){
+                    if (i.userID == userID && i.like == 1) {
                         added = false;
                         return;
                     }

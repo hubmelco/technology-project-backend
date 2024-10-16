@@ -1,27 +1,18 @@
-const { isValidBodyProperty } = require("../utilities/routerUtilities");
+const { validateBody } = require("../utilities/routerUtilities");
+const { isValidString } = require("../utilities/stringUtilities");
 
 const validRoles = ["user", "admin"];
 
-function validateUsername(req, res, next) {
-    if (isValidBodyProperty(req, res, "username")) {
-        next();
-    }
+function validateUsername() {
+    return validateBody("username", (username) => isValidString(username));
 }
 
-function validatePassword(req, res, next) {
-    if (isValidBodyProperty(req, res, "password")) {
-        next();
-    }
+function validatePassword() {
+    return validateBody("password", (password) => isValidString(password));
 }
 
-function validateRole(req, res, next) {
-    const role = req.body.role;
-    const isValidRole = validRoles.includes(role);
-    if (isValidRole) {
-        next();
-        return;
-    }
-    res.status(400).json({ message: `Invalid role ${role}` });
+function validateRole() {
+    return validateBody("role", (role) => validRoles.includes(role));
 }
 
 module.exports = {

@@ -1,7 +1,7 @@
 const express = require('express');
 const postService = require('../services/postService');
 const { handleServiceError } = require('../utilities/routerUtilities');
-const { authenticate } = require("../middleware/authMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
 const postMiddleware = require('../middleware/postMiddleware');
 
 const postRouter = express.Router();
@@ -15,10 +15,12 @@ const postRouter = express.Router();
  * Response
  *      200 - Post successfully created
  */
-postRouter.post("/", authenticate, postMiddleware.validateTextBody, postMiddleware.validateScore, async (req, res) => {
+postRouter.post("/", authMiddleware.authenticate(), postMiddleware.validateTextBody(), postMiddleware.validateScore(), postMiddleware.validateTitle(), async (req, res) => {
     //TODO check song title exists in API
+    const { text, score, title } = req.body;
+
     try {
-        const post = await postService.createPost(res.locals.user.itemID, req.body.text, req.body.score, req.body.title);
+        const post = await postService.createPost(res.locals.user.itemID, text, score, title);
         res.status(200).json({
             message: `Post successfully created`,
             post
@@ -28,7 +30,7 @@ postRouter.post("/", authenticate, postMiddleware.validateTextBody, postMiddlewa
     }
 });
 
-postRouter.patch("/:id", authenticate, async (req, res) => {
+postRouter.patch("/:id", authMiddleware.authenticate(), async (req, res) => {
     const {id} = req.params;
     try {
         const {Item} = await postService.getPost(id);
@@ -103,12 +105,15 @@ postRouter.get("/", async (req, res) => {
  *      text {string}
  * Response
  *      200 - Reply successfully created
- *      400 - That post doesn't exist
+ *      400 - Post ${id} not found
  */
-postRouter.patch("/:id/replies", authenticate, postMiddleware.validateTextBody, async (req, res) => {
+postRouter.patch("/:id/replies", authMiddleware.authenticate(), postMiddleware.validateTextBody(), async (req, res) => {
     //TODO check song title exists in API
+    const { id } = req.params;
+    const { text } = req.body;
+
     try {
-        const reply = await postService.createReply(res.locals.user.itemID, req.body.text, req.params.id);
+        const reply = await postService.createReply(res.locals.user.itemID, text, id);
         res.status(200).json({
             message: `Replied to ${req.params.id} successfully`,
             Reply: reply
@@ -118,18 +123,81 @@ postRouter.patch("/:id/replies", authenticate, postMiddleware.validateTextBody, 
     }
 });
 
-postRouter.patch("/:id/likes", authenticate, postMiddleware.validateLike, async (req, res) => {
-    //TODO check song title exists in API
+/**
+ * Update an existing post; request must come from owner of the post
+ * Path Parameter
+ *      :id {string} - The id of the post being updated
+ * Request Body
+ *      title {string}
+ *      score {number}
+ *      description {string}
+ * Response
+ *      200 - Updated post
+ *          postId {string}
+ *      400 - Post ${id} not found
+ */
+postRouter.patch("/:id", authMiddleware.postOwnerAuthenticate(), postMiddleware.validateTitle(false), postMiddleware.validateScore(false), postMiddleware.validateTextBody(false),
+    async (req, res) => {
+        const { id } = req.params;
+        const { title, score, description } = req.body;
+
+        try {
+            await postService.updatePost(id, title, score, description);
+            return res.status(200).json({ message: "Updated post", data: id });
+        } catch (err) {
+            handleServiceError(err, res);
+        }
+    }
+);
+
+/**
+ * Delete an existing post; request must come from owner of the post
+ * Path Parameter
+ *      :id {string} - The id of the post being deleted
+ * Response
+ *      200 - Deleted post
+ *          postId {string}
+ *      400 - Post ${id} not found
+ */
+postRouter.delete("/:id", authMiddleware.postOwnerAuthenticate(), async (req, res) => {
+    const { id } = req.params;
+
     try {
-        await postService.checkLike(req.body.like, req.params.id, res.locals.user.itemID);
-        if (req.body.like == 1){
+        await postService.deletePost(id);
+        return res.status(200).json({ message: "Deleted post", data: id });
+    } catch (err) {
+        handleServiceError(err, res);
+    }
+});
+
+/**
+ * Like or dislike an existing post
+ * Path Param
+ *      :id {string} - The id of the post being liked/disliked
+ * Request Body
+ *      like {string} - Whether the user is liking/disliking the post
+ * Response
+ *      200 - Liked post ${id} successfully
+ *      200 - Disliked post ${id} successfully
+ *      400 - Post ${id} not found
+ *      400 - You already liked post ${postID}
+ *      400 - You already disliked post ${postID}
+ */
+postRouter.patch("/:id/likes", authMiddleware.authenticate(), postMiddleware.validateLike(), async (req, res) => {
+    //TODO check song title exists in API
+    const { id } = req.params;
+    const { like } = req.body;
+
+    try {
+        await postService.checkLike(like, id, res.locals.user.itemID);
+        if (like == 1) {
             res.status(200).json({
-                message: `Liked post ${req.params.id} successfully`
+                message: `Liked post ${id} successfully`
             });
         }
         else {
             res.status(200).json({
-                message: `Disliked post ${req.params.id} successfully`
+                message: `Disliked post ${id} successfully`
             });
         }
     } catch (err) {

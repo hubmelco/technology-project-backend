@@ -1,40 +1,27 @@
-function validateTextBody(req, res, next) {
-    const desc = req.body.text;
+const { validateBody } = require("../utilities/routerUtilities");
+const { isValidString } = require("../utilities/stringUtilities");
 
-    if(!desc) {
-        res.status(400).json({
-            message: "Invalid post text"
-        });
-        return;
-    }
-    next();
+function validateTitle(required = true) {
+    return validateBody("title", (title) => isValidString(title), required);
 }
 
-function validateScore(req, res, next) {
-    const score = req.body.score;
-
-    if(isNaN(score) || score < 0 || score > 100) {
-        res.status(400).json({
-            message: "Invalid score"
-        });
-        return;
-    }
-    next();
+function validateScore(required = true) {
+    const isValidScore = (score) => !isNaN(score) && score >= 0 && score <= 100;
+    return validateBody("score", isValidScore, required);
 }
 
-function validateLike(req, res, next) {
-    const like = req.body.like;
-    if (isNaN(like) || (like != 1 && like != -1)){
-        res.status(400).json({
-            message: "Invalid like"
-        });
-        return;
-    }
-    next();
+function validateTextBody(required = true) {
+    return validateBody("text", (text) => isValidString(text), required);
+}
+
+
+function validateLike(required = true) {
+    return validateBody("like", (like) => !isNaN(like) && (like == 1 || like == -1), required);
 }
 
 module.exports = {
-    validateTextBody,
+    validateTitle,
     validateScore,
+    validateTextBody,
     validateLike
 }
