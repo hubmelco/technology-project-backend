@@ -1,9 +1,11 @@
 const postService = require("../src/services/postService");
 const postDAO = require("../src/repository/postDAO");
 const { CLASS_POST } = require("../src/utilities/dynamoUtilities");
+const songService = require("../src/services/songService");
 
 jest.mock('../src/repository/postDAO');
 jest.mock("../src/utilities/dynamoUtilities");
+jest.mock('../src/services/songService');
 let mockDatabase = [];
 const mockPost1 = {
     class: CLASS_POST,
@@ -11,7 +13,7 @@ const mockPost1 = {
     postedBy: "95db201c-35bb-47d6-8634-8701a01f496a",
     description: "Hello world",
     score: 50,
-    title: "Title",
+    song: "Title",
     replies: [],
     likedBy: [],
     tags: new Map([["rock",true], ["hip-hop",true]])
@@ -22,7 +24,7 @@ const mockPost2 = {
     postedBy: "6d737a3b-d543-459b-aca6-d1f04952bf30",
     description: "This is a great song",
     score: 100,
-    title: "Title",
+    song: "Title",
     replies: [],
     likedBy: [],
     tags: new Map([["drill",true]])
@@ -132,6 +134,14 @@ beforeAll(() => {
             Items: mockDatabase
         };
     });
+    songService.getSongs.mockImplementation(async (query, offset = 0) => {
+        return {
+            $metadata: {
+                httpStatusCode: 200
+            },
+            songs: [{name: query.track, artists: [{name: query.artist}]}]
+        };
+    });
 });
 
 beforeEach(() => {
@@ -153,9 +163,9 @@ describe('createPost test', () => {
         const userId = "95db201c-35bb-47d6-8634-8701a01f496a";
         const text = "Decent song";
         const score = 69;
-        const title = "Hello";
+        const song = "Hello";
 
-        const response = await postService.createPost(userId, text, score, title);
+        const response = await postService.createPost(userId, text, score, song);
         expect(response).toEqual(mockDatabase[mockDatabase.length - 1]);
     });
 });

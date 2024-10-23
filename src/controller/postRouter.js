@@ -19,10 +19,10 @@ const postRouter = express.Router();
 postRouter.post("/", authenticate, postMiddleware.validateTextBody, postMiddleware.validateScore, async (req, res) => {
     //TODO check song title exists in API
     const userId = res.locals.user.itemID;
-    const { text, score, title, tags } = req.body;
+    const { text, score, song, artist, tags } = req.body;
 
     try {
-        const post = await postService.createPost(userId, text, score, title, tags);
+        const post = await postService.createPost(userId, text, score, song, artist, tags);
         res.status(201).json({
             message: `Post successfully created`,
             post
@@ -58,14 +58,6 @@ postRouter.patch("/:postId", authenticate, async (req, res) => {
     }
 });
 
-/**
- * Gets a post by their id
- * Path Parameter
- *      :postId {string}
- * Response
- *      200 - Successfully received the post by their id
- *      400 - Post with id ${postId} not found
- */
 postRouter.get("/:postId", async (req, res) => {
     const { postId } = req.params;
 
@@ -121,9 +113,8 @@ postRouter.get("/tags", async (req, res) => {
 
 /**
  * Add a reply to an existing post
- * Path Parameter
- *      :postId {string}
  * Request Body
+ *      id {string}
  *      text {string}
  * Response
  *      200 - Reply successfully created
@@ -165,14 +156,6 @@ postRouter.patch("/:postId/likes", authenticate, postMiddleware.validateLike, as
     }
 });
 
-/**
- * Deletes a post by their id
- * Path Parameter
- *      :postId {string}
- * Response
- *      200 - Successfully deleted the post by their id
- *      400 - Post with id ${postId} not found
- */
 postRouter.delete("/:postId", postOwnerOrAdminAuthenticate, async (req, res) => {
     const { postId } = req.params;
 
@@ -184,15 +167,6 @@ postRouter.delete("/:postId", postOwnerOrAdminAuthenticate, async (req, res) => 
     }
 });
 
-/**
- * Deletes a reply by their id
- * Path Parameter
- *      :postId {string}
- *      :replyId {string}
- * Response
- *      200 - Successfully deleted the reply by their id
- *      400 - Post with id ${postId} not found or reply with id ${replyId} not found
- */
 postRouter.delete("/:postId/replies/:replyId", replyOwnerOrAdminAuthenticate, async (req, res) => {
     const { postId, replyId } = req.params;
 
