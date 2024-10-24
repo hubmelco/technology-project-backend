@@ -154,20 +154,21 @@ const deleteReply = async (postId, replyId) => {
     throwIfError(data);
 }
 
-const checkTags = async (tags, inclusive) => {
+const checkTags = async (tagsList, inclusive) => {
     const posts = await postDAO.scanPosts();
     throwIfError(posts);
-    if (!tags){
+    if (tagsList == ""){
         return posts.Items;
     }
+    tagsList = tagsList.split(',');
     const postSet = new Set();
     if (inclusive == 1){
         for (const post of posts.Items){
-            for (const i of tags){
+            for (const i of tagsList){
                 if (!post.tags){
                     break;
                 }
-                if (post.tags.has(i)){
+                if (post.tags.hasOwnProperty(i)){
                     postSet.add(post);
                     break;
                 }
@@ -177,8 +178,8 @@ const checkTags = async (tags, inclusive) => {
     else {
         for (const post of posts.Items){
             let should = true;
-            for (const i of tags){
-                if (!post.tags || !post.tags.has(i)){
+            for (const i of tagsList){
+                if (!post.tags || !post.tags.hasOwnProperty(i)){
                     should = false;
                     break;
                 }
