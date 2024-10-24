@@ -4,6 +4,8 @@ phases:
     runtime-versions:
       nodejs: 20
     commands:
+      - aws s3 cp s3://technology-project-ssl/tech-project.pem tech-project.pem
+      - aws s3 cp s3://technology-project-ssl/tech-project-key.pem tech-project-key.pem
       - npm install
       - npm test
 artifacts:

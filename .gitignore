@@ -129,4 +129,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# SSL files
+tech-project.pem
+tech-project-key.pem
+
 key.txt
