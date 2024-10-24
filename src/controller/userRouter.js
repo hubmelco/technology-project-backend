@@ -41,7 +41,7 @@ userRouter.post("/", userMiddleware.validateUsername, userMiddleware.validatePas
  *          token - JWT session token, expires after 1 day
  *      400 - Invalid username/password
  */
-userRouter.post("/login", userMiddleware.validateUsername, userMiddleware.validatePassword, async (req, res) => {
+userRouter.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
     try {
@@ -89,7 +89,7 @@ userRouter.get("/:userId", async (req, res) => {
  *      400 - User with id ${userId} not found
  *      401 - Unauthorized access - wrong user
  */
-userRouter.put("/:userId", authenticate, async (req, res) => {
+userRouter.put("/:userId", authenticate, userMiddleware.validateUsername, async (req, res) => {
     const userId = req.params.userId;
     const requestBody = req.body;
 
