@@ -1,5 +1,5 @@
 const { PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand, DeleteCommand } = require("@aws-sdk/lib-dynamodb");
-const { TableName, runCommand, flaggedIndex, CLASS_POST } = require('../utilities/dynamoUtilities');
+const { TableName, runCommand, flaggedIndex, CLASS_POST, postedByIndex } = require('../utilities/dynamoUtilities');
 
 const sendPost = async (post) => {
     const command = new PutCommand({
@@ -143,6 +143,23 @@ const deletePost = async (postId) => {
     return await runCommand(command);
 }
 
+const getPostsByPostedBy = async (postedBy) => {
+    const command = new QueryCommand({
+        TableName,
+        IndexName: postedByIndex,
+        KeyConditionExpression: "#class = :class AND #postedBy = :postedBy",
+        ExpressionAttributeNames: {
+            "#class": "class",
+            "#postedBy": "postedBy"
+        },
+        ExpressionAttributeValues: {
+            ":postedBy": postedBy,
+            ":class": CLASS_POST
+        }
+    });
+    return await runCommand(command);
+}
+
 module.exports = {
     sendPost,
     scanPosts,
@@ -154,5 +171,6 @@ module.exports = {
     updatePostFlag,
     getFlaggedPost,
     updateReplies,
-    deletePost
+    deletePost,
+    getPostsByPostedBy,
 };

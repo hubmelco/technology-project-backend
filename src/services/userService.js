@@ -19,7 +19,8 @@ const register = async (username, password) => {
         password,
         role: "user",
         bio: "",
-        genres: []
+        genres: [],
+        profileImage: "https://techprojectmedia.s3.us-east-2.amazonaws.com/images/defaultImage.png"
     }
     const result = await userDAO.putUser(user);
     throwIfError(result);
@@ -77,6 +78,8 @@ async function getUserById(userId) {
     const result = await userDAO.getUserById(userId);
     throwIfError(result);
     const foundUser = result?.Item;
+    delete(foundUser?.password);
+    delete(foundUser?.class);
     return foundUser;
 }
 
@@ -98,6 +101,9 @@ async function updateUser(userId, requestBody) {
     }
     if (!requestBody.genres) {
         requestBody.genres = foundUser.genres //? foundUser.genres : [];
+    }
+    if (!requestBody.profileImage) {
+        requestBody.profileImage = foundUser.profileImage
     }
 
     const result = await userDAO.updateUser(userId, requestBody);
@@ -123,11 +129,30 @@ function createToken(user) {
     return token;
 }
 
+async function uploadImage(imageBuffer, extension) {
+    if (extension !== "jpg" && extension !== "jpeg" && extension !== "png" && extension !== "svg") {
+        return Promise.reject({status:400, message: "Invalid extension. Must be jpg, jpeg, png, or svg"});
+    }
+    return await userDAO.uploadImage(imageBuffer, extension);
+}
+
+async function deleteImage(user) {
+    const {profileImage} = user;
+    const splitURL = profileImage.split("/");
+    const key = splitURL.slice(splitURL.length - 2, splitURL.length).join("/");
+    if (key === "images/defaultImage.png") {
+        return; // Dont delete the default image for all users
+    }
+    return await userDAO.deleteImage(key);
+}
+
 module.exports = {
     register,
     login,
     updateRole,
     getUserById,
     updateUser,
-    deleteUser
+    deleteUser,
+    uploadImage,
+    deleteImage,
 };

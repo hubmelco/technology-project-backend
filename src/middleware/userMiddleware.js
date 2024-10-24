@@ -24,8 +24,18 @@ function validateRole(req, res, next) {
     res.status(400).json({ message: `Invalid role ${role}` });
 }
 
+function validateUser(req, res, next) {
+    const {id} = req.params;
+    const {itemID, role} = res.locals.user
+    if (role !== "admin" && id !== itemID) {
+        return res.status(401).json({message: "You are not the account owner"})
+    }
+    next();
+}
+
 module.exports = {
     validateUsername,
     validatePassword,
-    validateRole
+    validateRole,
+    validateUser,
 };

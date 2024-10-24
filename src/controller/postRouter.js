@@ -84,7 +84,7 @@ postRouter.get("/:postId", async (req, res) => {
  *          posts - Array of retrieved posts
  */
 postRouter.get("/", async (req, res) => {
-    let isFlagged = req.query.isFlagged;
+    let {isFlagged, postedBy} = req.query;
     if (isFlagged !== undefined) {
         isFlagged = parseInt(isFlagged);
         // Since 0 is falsy we need to confirm its not 0
@@ -97,7 +97,14 @@ postRouter.get("/", async (req, res) => {
         } catch (err) {
             handleServiceError(err, res);
         }
-    } else {
+    } else if (postedBy !== undefined && postedBy !== "") {
+        try {
+            const posts = await postService.getPostsByPostedBy(postedBy);
+            return res.status(200).json({ posts });
+        } catch (err) {
+            handleServiceError(err, res);
+        }
+    }else {
         //TODO check song title exists in API
         try {
             const posts = await postService.seePosts();
